@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "Wish": {
+      "title": "Wish",
+      "description": "A wish submitted by a student.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the wish." },
+        "description": { "type": "string", "description": "The detailed description of the wish." },
+        "category": { "type": "string", "enum": ["學業", "交友", "生活", "校園設施"], "description": "The category of the wish." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the wish was created." },
+        "authorId": { "type": "string", "description": "The UID of the author (anonymous)." },
+        "status": { "type": "string", "enum": ["active", "done"], "description": "The status of the wish." }
+      },
+      "required": ["title", "description", "category", "createdAt", "status"]
+    },
+    "Update": {
+      "title": "Update",
+      "description": "A progress update for a wish.",
+      "type": "object",
+      "properties": {
+        "wishId": { "type": "string", "description": "The ID of the wish this update belongs to." },
+        "content": { "type": "string", "description": "The content of the update." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the update was created." },
+        "authorId": { "type": "string", "description": "The UID of the author." }
+      },
+      "required": ["wishId", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/wishes/{wishId}": {
+      "schema": "Wish",
+      "description": "Collection of all wishes."
+    },
+    "/wishes/{wishId}/updates/{updateId}": {
+      "schema": "Update",
+      "description": "Sub-collection of updates for a specific wish."
+    }
+  }
+}

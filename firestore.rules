@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: wishes
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required, 1-100 chars)
+    //   - description: string (required, 1-1000 chars)
+    //   - category: string (required, enum: ["學業", "交友", "生活", "校園設施"])
+    //   - createdAt: timestamp (required)
+    //   - authorId: string (required)
+    //   - status: string (required, enum: ["active", "done"])
+    //
+    // Collection: wishes/{wishId}/updates
+    // Document ID: auto-generated
+    // Fields:
+    //   - wishId: string (required)
+    //   - content: string (required, 1-500 chars)
+    //   - createdAt: timestamp (required)
+    //   - authorId: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.email == "1260125-x@g.puiching.edu.mo" && request.auth.token.email_verified == true);
+    }
+
+    function isOwner(authorId) {
+      return isAuthenticated() && request.auth.uid == authorId;
+    }
+
+    function isValidWish(data) {
+      return data.keys().hasAll(['title', 'description', 'category', 'createdAt', 'authorId', 'status']) &&
+             data.keys().hasOnly(['title', 'description', 'category', 'createdAt', 'authorId', 'status']) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 1000 &&
+             data.category in ["學業", "交友", "生活", "校園設施"] &&
+             data.createdAt is timestamp &&
+             data.authorId is string && data.authorId == request.auth.uid &&
+             data.status in ["active", "done"];
+    }
+
+    function isValidUpdate(data, wishId) {
+      return data.keys().hasAll(['wishId', 'content', 'createdAt', 'authorId']) &&
+             data.keys().hasOnly(['wishId', 'content', 'createdAt', 'authorId']) &&
+             data.wishId == wishId &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 500 &&
+             data.createdAt is timestamp &&
+             data.authorId is string && data.authorId == request.auth.uid;
+    }
+
+    match /wishes/{wishId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidWish(request.resource.data);
+      allow delete: if isAuthenticated() && (isOwner(resource.data.authorId) || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(resource.data.authorId) || isAdmin()) && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+                    request.resource.data.status in ["active", "done"];
+
+      match /updates/{updateId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && isValidUpdate(request.resource.data, wishId);
+        allow delete: if isAuthenticated() && (isOwner(resource.data.authorId) || isAdmin());
+        allow update: if false;
+      }
+    }
+
+    // User profiles (if needed later)
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+  }
+}
