@@ -207,6 +207,20 @@
 
     <script>
         // --- Configuration & Data ---
+        // 🔴 請將這裡的網址換成你 Apps Script 部署後得到的 Web App URL
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpl7DEbZ7N6h2b6YrhYtUBmlxw0tVRQ8Vc35v76wP4IbDMcYWV0TDTpIT9XpvMX4BPCA/exec";
+
+        async function syncToSheet(payload) {
+            if (APPS_SCRIPT_URL.includes("PASTE")) return;
+            try {
+                await fetch(APPS_SCRIPT_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain" },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) { console.warn(e); }
+        }
+
         const CATEGORIES = [
             { label: '全部', icon: 'sparkles', color: 'bg-amber-100 text-amber-700' },
             { label: '學業', icon: 'book-open', color: 'bg-blue-100 text-blue-700' },
@@ -226,6 +240,7 @@
             const records = loadData();
             records.unshift(newRecord);
             localStorage.setItem('records', JSON.stringify(records));
+            syncToSheet({ action: "create", record: newRecord });
         }
 
         function loadData() {
@@ -402,6 +417,7 @@
             if (record) {
                 record.status = record.status === 'active' ? 'done' : 'active';
                 localStorage.setItem('records', JSON.stringify(records));
+                syncToSheet({ action: "update", id: id, changes: { status: record.status } });
                 renderList();
             }
         }
@@ -411,6 +427,8 @@
             const records = loadData();
             const filtered = records.filter(r => r.id !== id);
             localStorage.setItem('records', JSON.stringify(filtered));
+            // ✅ 新增這一行，將刪除操作同步到 Google Sheet
+            syncToSheet({ action: "delete", id: id });
             renderList();
         }
 
@@ -460,7 +478,7 @@
             const newRecord = {
                 id: Date.now() + "_" + Math.random().toString(36).slice(2, 6),
                 createdAt: new Date().toISOString(),
-                title: title, // 你的主要欄位
+                title: title,
                 content: content,
                 category: selectedModalCategory,
                 status: "active",
@@ -487,6 +505,7 @@
                     createdAt: new Date().toISOString()
                 });
                 localStorage.setItem('records', JSON.stringify(records));
+                syncToSheet({ action: "update", id: wishId, changes: { updates: record.updates } });
                 closeReportModal();
                 renderList();
             }
